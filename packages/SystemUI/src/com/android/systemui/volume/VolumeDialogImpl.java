@@ -381,6 +381,9 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
             mCsdWarningNotificationActions = Optional.of(ImmutableList.of());
 
     private boolean mShowVolumePercent = true;
+    private static final String VOLUME_PANEL_CLICK_ENABLED =
+            "volume_panel_click_enabled";
+    private boolean mVolumePanelClickEnabled;
 
     public VolumeDialogImpl(
             Context context,
@@ -493,6 +496,21 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
                 Settings.Secure.getUriFor("volume_show_volume_percent"),
                 false, volumePercentObserver);
         volumePercentObserver.onChange(true);
+
+        ContentObserver volumePanelClickObserver = new ContentObserver(null) {
+            @Override
+            public void onChange(boolean selfChange) {
+         mVolumePanelClickEnabled = Settings.Secure.getIntForUser(
+                 mContext.getContentResolver(),
+                 VOLUME_PANEL_CLICK_ENABLED,
+                 0,
+                 UserHandle.USER_CURRENT) != 0;
+            }
+        };
+        mContext.getContentResolver().registerContentObserver(
+                Settings.Secure.getUriFor(VOLUME_PANEL_CLICK_ENABLED),
+                false, volumePanelClickObserver);
+        volumePanelClickObserver.onChange(true);
 
         initDimens();
 
@@ -1559,35 +1577,35 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
             mExpandRowsView.setVisibility(showSettings ? VISIBLE : GONE);
         }
         if (mExpandRows != null) {
-            mExpandRows.setOnClickListener(v -> {
-                // ensure we collapse app rows if expanded
-                if (mExpansionState == ExpansionState.APPS_EXPANDED) {
-                    mPrevExpansionState = mExpansionState;
-                    mExpansionState = ExpansionState.COLLAPSED;
-                    updateRowsH(mDefaultRow, false);
-                }
-                mPrevExpansionState = mExpansionState;
-                mExpansionState = mPrevExpansionState == ExpansionState.EXPANDED
-                        ? ExpansionState.COLLAPSED : ExpansionState.EXPANDED;
-                updateRowsH(mDefaultRow, true);
-                if (mExpansionState == ExpansionState.COLLAPSED && !isWindowGravityLeft()) {
-                    rotateIcon();
-                } else if (mExpansionState == ExpansionState.COLLAPSED && isWindowGravityLeft()) {
-                    rotateIconReverse();
-                } else if (mExpansionState == ExpansionState.EXPANDED && isWindowGravityLeft()) {
-                    rotateIcon();
-                } else {
-                    rotateIconReverse();
-                }
-            });
-            mExpandRows.setOnLongClickListener(new View.OnLongClickListener() {
+            mExpandRows.setOnClickListener(new View.OnClickListener() {
                 @Override
-                public boolean onLongClick(View v) {
-                    Events.writeEvent(Events.EVENT_SETTINGS_CLICK);
-                    dismissH(DISMISS_REASON_SETTINGS_CLICKED);
-                    mVolumeNavigator.openVolumePanel(
-                            mVolumePanelNavigationInteractor.getVolumePanelRoute());
-                    return true;
+                public void onClick(View v) {
+                    if (mVolumePanelClickEnabled) {
+                        Events.writeEvent(Events.EVENT_SETTINGS_CLICK);
+                        dismissH(DISMISS_REASON_SETTINGS_CLICKED);
+                        mVolumeNavigator.openVolumePanel(
+                                mVolumePanelNavigationInteractor.getVolumePanelRoute());
+                    } else {
+                        // ensure we collapse app rows if expanded
+                        if (mExpansionState == ExpansionState.APPS_EXPANDED) {
+                            mPrevExpansionState = mExpansionState;
+                            mExpansionState = ExpansionState.COLLAPSED;
+                            updateRowsH(mDefaultRow, false);
+                        }
+                        mPrevExpansionState = mExpansionState;
+                        mExpansionState = mPrevExpansionState == ExpansionState.EXPANDED
+                            ? ExpansionState.COLLAPSED : ExpansionState.EXPANDED;
+                        updateRowsH(mDefaultRow, true);
+                        if (mExpansionState == ExpansionState.COLLAPSED && !isWindowGravityLeft()) {
+                            rotateIcon();
+                        } else if (mExpansionState == ExpansionState.COLLAPSED && isWindowGravityLeft()) {
+                            rotateIconReverse();
+                        } else if (mExpansionState == ExpansionState.EXPANDED && isWindowGravityLeft()) {
+                            rotateIcon();
+                        } else {
+                            rotateIconReverse();
+                        }
+                    }
                 }
             });
         }
@@ -3042,8 +3060,16 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
         mTopContainer.setBackground(background);
     }
 
+    private void updateVolumePanelClickEnabled() {
+        mVolumePanelClickEnabled = Settings.Secure.getIntForUser(
+                mContext.getContentResolver(),
+                VOLUME_PANEL_CLICK_ENABLED, 0,
+                UserHandle.USER_CURRENT) != 0;
+    }
+
     @Override
     public void onConfigChanged(Configuration config) {
+        updateVolumePanelClickEnabled();
         if (mDialog != null) {
             mDialog.dismiss();
         }

@@ -13205,6 +13205,12 @@ public final class Settings {
         public static final String DOZE_PICK_UP_GESTURE_AMBIENT = "doze_pick_up_gesture_ambient";
 
         /**
+         * Switch to control volume panel open on click
+         * @hide
+         */
+        public static final String VOLUME_PANEL_CLICK_ENABLED = "volume_panel_click_enabled";
+
+        /**
          * These entries are considered common between the personal and the managed profile,
          * since the managed profile doesn't get to change them.
          */
